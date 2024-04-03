@@ -3,7 +3,7 @@ import pandas as pd
 from GameCode.constants import ROOMS, SUSPECTS, WEAPONS, WIDTH, HEIGHT
 
 
-class NaiveCluePlayer:
+class Learner:
     def __init__(self, cards, player_card_count, my_player_number, played_suspects, **kwargs):
         self.my_player_number = my_player_number
         self.player_card_count = player_card_count
@@ -12,10 +12,18 @@ class NaiveCluePlayer:
         self.cards = cards
         self.information_df = pd.DataFrame(0, index=ROOMS + SUSPECTS + WEAPONS, columns=range(len(played_suspects)))
         self.known_results = []
+        self.guess_params = kwargs['guess_params_dict']
+        self.epsilon = kwargs['epsilon']
+        self.length_of_known_results_normalization = kwargs['length_of_known_results_normalization']
+        self.solutions_in_play_normalization = kwargs['solutions_in_play_normalization']
+        self.results = []
         self.information_df[my_player_number] = -1
         for card in cards:
             self.information_df.loc[card] = -1
             self.information_df.loc[card, self.my_player_number] = 1
+
+    def report_results(self):
+        return self.results
 
     def ask_player(self, room: str, weapon: str, suspect: str) -> str:
         if room in self.cards:
@@ -27,12 +35,49 @@ class NaiveCluePlayer:
         raise f"I shouldn't have been asked about {room, weapon, suspect}"
 
     def ready_to_guess(self):
+        number_of_solved, room_guess, weapon_guess, suspect_guess, length_of_known_results, solutions_in_play = self._get_simple_game_state_info()
+        if number_of_solved == 3:
+            return True, (room_guess, weapon_guess, suspect_guess)
+
+        action_values = self.guess_params[number_of_solved][length_of_known_results//self.length_of_known_results_normalization][len(solutions_in_play)//self.solutions_in_play_normalization]
+        action_plan = action_values[True] > action_values[False]
+        if np.random.rand() < self.epsilon:
+            action_plan = not action_plan
+        if action_plan:
+            best_guess_score = min(solutions_in_play.values())
+            self.results.append([number_of_solved, length_of_known_results//self.length_of_known_results_normalization, len(solutions_in_play)//self.solutions_in_play_normalization, action_plan])
+            for solution in solutions_in_play.keys():
+                if solutions_in_play[solution] == best_guess_score:
+                    return True, solution
+        return False, None
+
+    def _get_simple_game_state_info(self):
         is_room_solved, room_guess = self._is_type_of_card_solved(ROOMS)
         is_weapon_solved, weapon_guess = self._is_type_of_card_solved(WEAPONS)
         is_suspect_solved, suspect_guess = self._is_type_of_card_solved(SUSPECTS)
-        if is_room_solved and is_suspect_solved and is_weapon_solved:
-            return True, (room_guess, weapon_guess, suspect_guess)
-        return False, None
+        length_of_known_results = len(self.known_results)
+        solutions_in_play = self._get_possible_solutions_dict()
+        number_of_solved = is_room_solved + is_weapon_solved + is_suspect_solved
+        return number_of_solved, room_guess, weapon_guess, suspect_guess, length_of_known_results, solutions_in_play
+
+    def _get_cards_in_play(self, cards):
+        is_type_solved, type_guess = self._is_type_of_card_solved(cards)
+        if is_type_solved:
+            return {type_guess: 0}
+        else:
+            return {card: -sum(self.information_df.loc[card]) for card in cards if
+                              max(self.information_df.loc[card]) != 1}
+
+    def _get_possible_solutions_dict(self):
+        rooms_in_play = self._get_cards_in_play(ROOMS)
+        weapons_in_play = self._get_cards_in_play(WEAPONS)
+        suspects_in_play = self._get_cards_in_play(SUSPECTS)
+        output = dict()
+        for room in rooms_in_play.keys():
+            for weapon in weapons_in_play.keys():
+                for suspect in suspects_in_play.keys():
+                    output[(room, weapon, suspect)] = rooms_in_play[room] + weapons_in_play[weapon] + suspects_in_play[suspect]
+        return output
 
     def take_turn(self, locations: dict, board, roll: int):
         move_decision = self._make_move_decision(locations, roll, board.get_room_to_room_distances(), board.get_square_to_square_distances(), board.get_square_to_room_distances())
@@ -89,7 +134,6 @@ class NaiveCluePlayer:
             else:
                 weapon_scores.append(sum(self.information_df.loc[weapon]))
         weapon_to_guess = WEAPONS[weapon_scores.index(min(weapon_scores))]
-
         suspect_scores = []
         for suspect in SUSPECTS:
             if self._check_if_card_is_known_to_me(suspect):
@@ -137,10 +181,12 @@ class NaiveCluePlayer:
                 this_weapon = result[2]
                 this_suspect = result[3]
 
-                current_status_list = [self.information_df.loc[card, this_id] for card in (this_room, this_weapon, this_suspect)]
+                current_status_list = [self.information_df.loc[card, this_id] for card in
+                                       (this_room, this_weapon, this_suspect)]
                 if 1 in current_status_list:
                     continue
-                assert sum(current_status_list) > -3, f"It must be possible for {this_id} to have one of {this_room, this_weapon, this_suspect}"
+                assert sum(
+                    current_status_list) > -3, f"It must be possible for {this_id} to have one of {this_room, this_weapon, this_suspect}"
 
                 if sum(current_status_list) == -2:
                     card_they_have = result[1:][current_status_list.index(0)]

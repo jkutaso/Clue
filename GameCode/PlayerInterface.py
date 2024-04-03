@@ -6,9 +6,9 @@ sys.path.append(parent_dir)
 import numpy as np
 from Players.naive_clue_player import NaiveCluePlayer
 from Players.probabilistic_clue_player import ProbabilisticCluePlayer
-from ClueBoard import ClueBoard
-from GameState import GameState
-from constants import ROOMS, WEAPONS, SUSPECTS
+from .ClueBoard import ClueBoard
+from .GameState import GameState
+from .constants import ROOMS, WEAPONS, SUSPECTS
 
 
 def roll(debugging):
@@ -19,13 +19,13 @@ def roll(debugging):
 
 
 class PlayerInterface:
-    def __init__(self, player_types, clue_board, debugging):
+    def __init__(self, player_types, clue_board, debugging, **kwargs):
         self.player_types = player_types
         self.debugging = debugging
         self.clue_board = clue_board
         self.game_state = GameState(self.clue_board, len(player_types))
         self.players = dict()
-        self._initialize_players()
+        self._initialize_players(guess_params_dict=kwargs['guess_params_dict'], epsilon=kwargs['epsilon'], length_of_known_results_normalization=kwargs['length_of_known_results_normalization'], solutions_in_play_normalization=kwargs['solutions_in_play_normalization'])
 
     def get_players(self):
         return self.players
@@ -36,17 +36,17 @@ class PlayerInterface:
             next_player_id = (next_player_id + 1) % len(self.game_state.get_played_suspects())
         self.game_state.update_turn(next_player_id)
 
-    def _initialize_players(self):
+    def _initialize_players(self, **kwargs):
         for i in range(len(self.player_types)):
             if self.debugging:
                 print("Cards assigned to", i, self.game_state.get_cards(i))
-            self.players[i] = self.player_types[i](self.game_state.get_cards(i), self.game_state.get_player_card_count(), i, self.game_state.get_played_suspects())
+            self.players[i] = self.player_types[i](self.game_state.get_cards(i), self.game_state.get_player_card_count(), i, self.game_state.get_played_suspects(), guess_params_dict=kwargs['guess_params_dict'], epsilon=kwargs['epsilon'], length_of_known_results_normalization=kwargs['length_of_known_results_normalization'], solutions_in_play_normalization=kwargs['solutions_in_play_normalization'])
 
     def handle_guess(self, guess, debugging):
         current_player_id = self.game_state.get_current_turn_id()
         players = self.players
         if guess == (self.game_state.get_true_room(), self.game_state.get_true_weapon(), self.game_state.get_true_suspect()):
-            if True:
+            if debugging:
                 print("Player {} wins by guessing {}".format(current_player_id, guess))
             return True
         else:
@@ -54,7 +54,6 @@ class PlayerInterface:
                 print("Player {} eliminated".format(current_player_id))
                 print("Guessed {}".format(guess))
                 print("Truth is {}".format((self.game_state.get_true_room(), self.game_state.get_true_weapon(), self.game_state.get_true_suspect())))
-                assert False
             players[current_player_id] = -1
             return False
 
@@ -117,9 +116,7 @@ class PlayerInterface:
         return current_player_id, current_player, self.game_state.get_played_suspects()[current_player_id]
 
 
-def run_full_game(clue_board, player_types, debugging):
-
-    player_interface = PlayerInterface(player_types=player_types, clue_board = clue_board, debugging=debugging)
+def run_full_game(player_interface, debugging, **kwargs):
     count = 0
     while count < 100:
         count += 1
@@ -131,11 +128,11 @@ def run_full_game(clue_board, player_types, debugging):
         if ready_to_guess:
             guess_result = player_interface.handle_guess(guess, debugging)
             if guess_result:
-                print(count)
                 return current_player_id
             else:
+                print('wrong_guess')
                 for player_id in range(len(player_interface.player_types)):
-                    if player_id == current_player_id:
+                    if player_id == current_player_id or player_interface.players[player_id] == -1:
                         continue
                     for card in player_interface.game_state.get_cards(current_player_id):
                         player_interface.players[player_id].update_given_shown(current_player_id, card)
@@ -154,17 +151,7 @@ def run_full_game(clue_board, player_types, debugging):
             current_player.parse_ask_result((room, weapon, suspect), current_player_id, ask_result)
             hidden_ask_result = {key: True if value and value != '' else False for key, value in ask_result.items()}
             for player in player_interface.get_players().values():
+                if player == -1:
+                    continue
                 player.parse_ask_result((room, weapon, suspect), current_player_id, hidden_ask_result)
         player_interface.increment_turn()
-
-
-def main():
-    clue_board = ClueBoard()
-    player_types = [NaiveCluePlayer] * 3 + [ProbabilisticCluePlayer]
-    wins = [0] * len(player_types)
-    for i in range(20):
-        wins[run_full_game(clue_board, player_types, False)] += 1
-    print(wins)
-
-
-main()

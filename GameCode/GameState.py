@@ -1,5 +1,5 @@
 import numpy as np
-from constants import ROOMS, SUSPECTS, WEAPONS, START_LOCATIONS
+from .constants import ROOMS, SUSPECTS, WEAPONS, START_LOCATIONS
 
 
 class GameState:
