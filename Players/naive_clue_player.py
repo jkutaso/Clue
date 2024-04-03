@@ -12,7 +12,7 @@ class NaiveCluePlayer:
         self.cards = cards
         self.information_df = pd.DataFrame(0, index=ROOMS + SUSPECTS + WEAPONS, columns=range(len(played_suspects)))
         self.known_results = []
-
+        self.information_df[my_player_number] = -1
         for card in cards:
             self.information_df.loc[card] = -1
             self.information_df.loc[card, self.my_player_number] = 1
@@ -123,6 +123,8 @@ class NaiveCluePlayer:
                 self.information_df.loc[card, player_id] = -1
         elif response in ROOMS + WEAPONS + SUSPECTS:
             self._assign_card_to_player(response, player_id)
+        else:
+            self.known_results.append((player_id, room, weapon, suspect))
 
         keep_running = True
         count = 0
@@ -135,10 +137,10 @@ class NaiveCluePlayer:
                 this_weapon = result[2]
                 this_suspect = result[3]
 
-                current_status_list = [self.information_df.loc[card, player_id] for card in (this_room, this_weapon, this_suspect)]
+                current_status_list = [self.information_df.loc[card, this_id] for card in (this_room, this_weapon, this_suspect)]
                 if 1 in current_status_list:
                     continue
-                assert sum(current_status_list) > -3, f"It must be possible to have one of {this_room, this_weapon, this_suspect}"
+                assert sum(current_status_list) > -3, f"It must be possible for {this_id} to have one of {this_room, this_weapon, this_suspect}"
 
                 if sum(current_status_list) == -2:
                     card_they_have = result[1:][current_status_list.index(0)]
