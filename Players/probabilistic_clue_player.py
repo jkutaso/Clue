@@ -4,7 +4,7 @@ from GameCode.constants import ROOMS, SUSPECTS, WEAPONS, WIDTH, HEIGHT, PROBABIL
 
 
 class ProbabilisticCluePlayer:
-    def __init__(self, cards, player_card_count, my_player_number, played_suspects):
+    def __init__(self, cards, player_card_count, my_player_number, played_suspects, **kwargs):
         self.my_player_number = my_player_number
         self.player_card_count = player_card_count
         self.my_suspect = played_suspects[my_player_number]
