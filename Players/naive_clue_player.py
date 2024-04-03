@@ -42,7 +42,7 @@ class NaiveCluePlayer:
             ask_decision = None
         return move_decision, ask_decision
 
-    def parse_ask_result(self, question, ask_result):
+    def parse_ask_result(self, question, current_player_id, ask_result):
         for player_id in ask_result.keys():
             self._update_known_results(player_id, *question, ask_result[player_id])
 

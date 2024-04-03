@@ -11,7 +11,6 @@ from GameState import GameState
 from constants import ROOMS, WEAPONS, SUSPECTS
 
 
-
 def roll(debugging):
     r = 2 + sum(np.random.choice(6, 2))
     if debugging:
@@ -152,10 +151,10 @@ def run_full_game(player_types, debugging):
             assert ask_decision[1] in WEAPONS
 
             (room, weapon, suspect), ask_result = player_interface.handle_ask(*ask_decision)
-            current_player.parse_ask_result((room, weapon, suspect), ask_result)
+            current_player.parse_ask_result((room, weapon, suspect), current_player_id, ask_result)
             hidden_ask_result = {key: True if value and value != '' else False for key, value in ask_result.items()}
             for player in player_interface.get_players().values():
-                player.parse_ask_result((room, weapon, suspect), hidden_ask_result)
+                player.parse_ask_result((room, weapon, suspect), current_player_id, hidden_ask_result)
         player_interface.increment_turn()
 
 
