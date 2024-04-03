@@ -9,7 +9,8 @@ from Players.probabilistic_clue_player import ProbabilisticCluePlayer
 from ClueBoard import ClueBoard
 from GameState import GameState
 from constants import ROOMS, WEAPONS, SUSPECTS
-
+import pstats
+from pstats import SortKey
 
 def roll(debugging):
     r = 2 + sum(np.random.choice(6, 2))
@@ -117,8 +118,8 @@ class PlayerInterface:
         return current_player_id, current_player, self.game_state.get_played_suspects()[current_player_id]
 
 
-def run_full_game(player_types, debugging):
-    clue_board = ClueBoard()
+def run_full_game(clue_board, player_types, debugging):
+
     player_interface = PlayerInterface(player_types=player_types, clue_board = clue_board, debugging=debugging)
     count = 0
     while count < 100:
@@ -158,9 +159,12 @@ def run_full_game(player_types, debugging):
         player_interface.increment_turn()
 
 
-player_types = [NaiveCluePlayer] * 3 + [ProbabilisticCluePlayer]
-wins = [0] * len(player_types)
-for i in range(10):
-    wins[run_full_game(player_types, False)] += 1
+def main():
+    clue_board = ClueBoard()
+    player_types = [NaiveCluePlayer] * 3 + [ProbabilisticCluePlayer]
+    wins = [0] * len(player_types)
+    for i in range(20):
+        wins[run_full_game(clue_board, player_types, False)] += 1
+    print(wins)
 
-print(wins)
+main()
