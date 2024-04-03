@@ -9,8 +9,7 @@ from Players.probabilistic_clue_player import ProbabilisticCluePlayer
 from ClueBoard import ClueBoard
 from GameState import GameState
 from constants import ROOMS, WEAPONS, SUSPECTS
-import pstats
-from pstats import SortKey
+
 
 def roll(debugging):
     r = 2 + sum(np.random.choice(6, 2))
@@ -166,5 +165,6 @@ def main():
     for i in range(20):
         wins[run_full_game(clue_board, player_types, False)] += 1
     print(wins)
+
 
 main()
