@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from GameCode.constants import ROOMS, SUSPECTS, WEAPONS, WIDTH, HEIGHT
+from GameCode.constants import ROOMS, SUSPECTS, WEAPONS, WIDTH, HEIGHT, PROBABILISTIC_AGGRESSION
 
 
 class ProbabilisticCluePlayer:
@@ -10,6 +10,7 @@ class ProbabilisticCluePlayer:
         self.my_suspect = played_suspects[my_player_number]
         self.played_suspects = played_suspects
         self.cards = cards
+        self.aggression = PROBABILISTIC_AGGRESSION
         self.information_df = pd.DataFrame(0, index=ROOMS + SUSPECTS + WEAPONS, columns=range(len(played_suspects)))
         for player_id in range(len(played_suspects)):
             self.information_df[player_id] = player_card_count[player_id]/len(self.information_df)
@@ -43,9 +44,9 @@ class ProbabilisticCluePlayer:
             ask_decision = None
         return move_decision, ask_decision
 
-    def parse_ask_result(self, question, ask_result):
+    def parse_ask_result(self, question, asker_id, ask_result):
         for player_id in ask_result.keys():
-            self._update_known_results(player_id, *question, ask_result[player_id])
+            self._update_known_results(player_id, *question, asker_id, ask_result[player_id])
 
     def update_given_shown(self, player_id, shown_card):
         self._assign_card_to_player(shown_card, player_id)
@@ -115,8 +116,8 @@ class ProbabilisticCluePlayer:
 
     def _normalize_column(self, player_id):
         confirmed_cards = [card for card in ROOMS + WEAPONS + SUSPECTS if
-                           self.information_df.loc[card, player_id] == 1]
-        sum_without_confirmed_cards = sum(self.information_df[player_id]) - len(confirmed_cards)
+                           self.information_df.loc[card, player_id] >= 1]
+        sum_without_confirmed_cards = sum(self.information_df[player_id]) - sum(self.information_df.loc[confirmed_cards, player_id])
         if sum_without_confirmed_cards == 0:
             return
         self.information_df[player_id] *= (self.player_card_count[player_id] - len(confirmed_cards))/sum_without_confirmed_cards
@@ -129,13 +130,14 @@ class ProbabilisticCluePlayer:
         for id in range(len(self.player_card_count)):
             self._normalize_column(id)
 
-    def _update_known_results(self, player_id, room, weapon, suspect, response):
+    def _update_known_results(self, player_id, room, weapon, suspect, asker_id, response):
         if not response:
             for card in (room, weapon, suspect):
                 old_probability = self.information_df.loc[card, player_id]
                 self.information_df.loc[card] /= (1 - old_probability)
                 self.information_df.loc[card, player_id] = 0
                 self.information_df[player_id] = self.information_df[player_id] * self.player_card_count[player_id]/sum(self.information_df[player_id])
+                self.information_df.loc[card, asker_id] = self.aggression + (1 - self.aggression) * self.information_df.loc[card, asker_id]
                 for id in range(len(self.player_card_count)):
                     self._normalize_column(id)
         elif response in ROOMS + WEAPONS + SUSPECTS:

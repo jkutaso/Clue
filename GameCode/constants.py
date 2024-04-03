@@ -1,5 +1,6 @@
 WIDTH = 24
 HEIGHT = 25
+PROBABILISTIC_AGGRESSION = 0
 
 ROOMS = ['Study', 'Hall', 'Lounge', 'Dining Room', 'Kitchen', 'Ballroom', 'Conservatory', 'Billiard Room', 'Library']
 SUSPECTS = ['Green', 'White', 'Peacock', 'Plum', 'Scarlett', 'Mustard']
